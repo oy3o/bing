@@ -1,0 +1,4 @@
+certifi
+httpx
+nest_asyncio
+websockets
