@@ -3,6 +3,10 @@
 perfect and logical reverse code implements the event-based API and websocket interface.
 
 ## Python API
+you can send cookie to init model or reload model.
+
+context will auto reload when chat reach limit, so if you do not change context, you can do not send context again.
+
 ```py
 from oy3opy.ai.bing import Model, events
 from oy3opy.utils.file import read_text
@@ -36,7 +40,7 @@ import nest_asyncio
 nest_asyncio.apply()
 asyncio.run(listen('127.0.0.1', 8443))
 ```
-a demo client of python
+### demo client of python
 ```py
 # client test
 from oy3opy.utils.string import tojson
