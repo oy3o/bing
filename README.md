@@ -30,7 +30,7 @@ asyncio.run(main())
 ```
 
 ## Websocket API
-one line code to start a server
+why not http? you can do it, but websocket is more suitable for stream and event.
 ### server
 ```py
 # server
@@ -38,7 +38,10 @@ from oy3opy.ai.bing.websocket import listen
 import asyncio
 import nest_asyncio
 nest_asyncio.apply()
-asyncio.run(listen('127.0.0.1', 8443))
+asyncio.run(listen('127.0.0.1', 8443, proxies = {
+    'http://': 'http://127.0.0.1:1081',
+    'https://': 'http://127.0.0.1:1081',
+}))
 ```
 ### demo client of python
 ```py
