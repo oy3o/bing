@@ -8,14 +8,14 @@ you can send cookie to init model or reload model.
 context will auto reload when chat reach limit, so if you do not change context, you can do not send context again.
 
 ```py
-from oy3opy.ai.bing import Model, Chat, events
+from oy3opy.ai.bing import AI, Model, events
 from oy3opy.utils.file import read_text
 import json
 import asyncio
 
 cookie = dict([(c['name'], c['value']) for c in json.loads(read_text('cookie.json'))])
 # events = ['error','create','update','send','generate','result','reply_suggestion','search','search_result','revoke','max_revoke','max_invocation']
-bing = Model(Chat(cookie, dict.fromkeys(events, print),{# print all event
+bing = AI(Model(cookie, dict.fromkeys(events, print),{# print all event
     'http://': 'http://127.0.0.1:1081',
     'https://': 'http://127.0.0.1:1081',
 }))

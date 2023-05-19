@@ -10,7 +10,7 @@ async def listen(addr:str, port:int, proxies = {}):
 
 async def handler(socket):
     _cookie = None
-    _model = None
+    ai = None
 
     def event_sender(e):
         e.update({'type':'event'})
@@ -19,18 +19,20 @@ async def handler(socket):
     async for payload in socket:
         message = json.loads(payload)
         cookie = message.get('cookie')
-        if cookie and (cookie != _cookie):
+        if cookie:
             _cookie = cookie
-            _model = Model(Chat(_cookie, dict.fromkeys(events, event_sender), _proxies))
-        if not _model:
+            ai = AI(Model(_cookie, dict.fromkeys(events, event_sender), _proxies))
+        if not ai:
             await socket.send('{"type":"error", "message":"model is not initialized"}')
         context = message.get('context')
         prompt = message.get('prompt')
         try:
-            async for chunk in _model.exec({
+            async for chunk in ai.exec({
                 'context': context,
                 'prompt': prompt,
             }):
                 await socket.send(tojson({'type':'message', 'message': chunk}))
         except Exception as e:
             await socket.send(tojson({'type':'error', 'message': errString(e)}))
+
+    await ai.close()

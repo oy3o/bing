@@ -1,7 +1,7 @@
 from oy3opy.utils.string import random_hex, tojson, errString
 from oy3opy.utils.task import AsyncTask
-from oy3opy.ai.model import Model
-from oy3opy.ai.model import Chat as _Chat
+from oy3opy.ai.model import AI
+from oy3opy.ai.model import Model as _Model
 import certifi
 import httpx
 import json
@@ -114,7 +114,7 @@ class Request:
             struct['arguments'][0]['previousMessages'] = [self.page]
         return tojson(struct) + '\x1e'
 
-class Chat(_Chat):# cookie, proxies, chat, context
+class Model(_Model):# cookie, proxies, chat, context
     def init(self):
         with httpx.Client(
             headers=RequestHeader, 
