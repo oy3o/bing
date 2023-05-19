@@ -172,7 +172,10 @@ class Model(_Model):# cookie, proxies, chat, context
             for payload in payloads:
                 if not payload:
                     continue
-                msg = json.loads(payload)
+                try:
+                    msg = json.loads(payload)
+                except:
+                    self.error('receive', payload)
                 err = msg.get('error')
                 if err:
                     self.error('receive', err)
