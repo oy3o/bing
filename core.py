@@ -1,6 +1,7 @@
 from oy3opy.utils.string import random_hex, tojson, errString
-from oy3opy.utils.task import AsyncTask, Task
-from oy3opy.ai.model import Model as _Model, Chat as _Chat
+from oy3opy.utils.task import AsyncTask
+from oy3opy.ai.model import Model
+from oy3opy.ai.model import Chat as _Chat
 import certifi
 import httpx
 import json
@@ -9,7 +10,7 @@ import ssl
 import uuid
 from websockets.client import connect
 
-events = ['create','update','generate','result','reply_suggestion','search','search_result','error','revoke','max_revoke','max_invocation']
+events = ['error','create','update','send','generate','result','reply_suggestion','search','search_result','revoke','max_revoke','max_invocation']
 ssl_context = ssl.create_default_context()
 ssl_context.load_verify_locations(certifi.where())
 
@@ -40,12 +41,12 @@ RequestHeader = {
 }
 
 class Request:
-    def __init__(self, data):
+    def __init__(self, data, page):
         self.client_id: str = data['clientId']
         self.conversation_id: str = data['conversationId']
         self.conversation_signature: str = data['conversationSignature']
         self.state = data['result']
-        self.page = None
+        self.page = page
     def update(self, context):
         self.page = {
             'author': 'oy3o', 
@@ -55,14 +56,14 @@ class Request:
             'sourceName': '❤️', 
             'sourceUrl': 'https://oy3o.com/❤️'
         }
-        return tojson({
+        return {
             'conversationId': self.conversation_id,
             'conversationSignature': self.conversation_signature,
             'messages': [self.page],
             'participant': {'id': self.client_id},
             'source': "cib",
             'traceId': random_hex(32),
-        })
+        }
     def message(self, id, text):
         struct = {
             'arguments': [
@@ -113,34 +114,45 @@ class Request:
             struct['arguments'][0]['previousMessages'] = [self.page]
         return tojson(struct) + '\x1e'
 
-class Chat(_Chat):# cook
-    def update(self, context):
+class Chat(_Chat):# cookie, proxies, chat, context
+    def init(self):
+        with httpx.Client(
+            headers=RequestHeader, 
+            proxies=self.proxies, 
+            timeout=16,
+            transport=httpx.HTTPTransport(retries=3), 
+            cookies=self.cookie,
+        ) as client:
+            response = client.get('https://edgeservices.bing.com/edgesvc/turing/conversation/create')
+            if response.status_code != 200:
+                raise f'code:{response.status_code}\ntext:{response.text}'
+            self.info = response.json()
+            self.request = Request(self.info, self.context)
+            if self.request.state['value'] != 'Success':
+                raise self.request.state['result']['message']
+        self.invocation_max = -1
+        self.invocation_id = 0
+        self.revoke_times = 0
+        self.dispatch('create', {'message': self.info})
+
+    async def update(self, context):
         if not self.invocation_id:
             self.request.update(context)
             return
-        try:
-            with httpx.Client(
-                headers=RequestHeader, 
-                proxies=self.proxies, 
-                timeout=16,
-                transport=httpx.HTTPTransport(retries=3),
-            ) as client:
-                response = client.post(
-                    'https://sydney.bing.com/sydney/UpdateChat',
-                    json=self.request.update(context),
-                )
-                if response.status_code != 200:
-                    self.dispatch('error', {
-                        'action': 'update',
-                        'code': response.status_code,
-                        'message': response.text,
-                    })
-            self.dispatch('update', {'message': context})
-        except Exception as e:
-            self.dispatch('error', {
-                'action': 'update',
-                'message': errString(e),
-            })
+
+        with httpx.Client(
+            headers=RequestHeader, 
+            proxies=self.proxies, 
+            timeout=16,
+            transport=httpx.HTTPTransport(retries=3),
+        ) as client:
+            response = client.post(
+                'https://sydney.bing.com/sydney/UpdateChat',
+                json=self.request.update(context),
+            )
+            if response.status_code != 200:
+                raise f'code:{response.status_code}\ntext:{response.text}'
+        self.dispatch('update', {'message': context})
 
     async def send(self, message):
         wss = await AsyncTask(connect, ('wss://sydney.bing.com/sydney/ChatHub',),
@@ -150,6 +162,7 @@ class Chat(_Chat):# cook
         await wss.recv()
 
         await wss.send(self.request.message(self.invocation_id, message))
+        self.dispatch('send', {'message': message})
 
         last = ''
         final = False
@@ -162,10 +175,7 @@ class Chat(_Chat):# cook
                 msg = json.loads(payload)
                 err = msg.get('error')
                 if err:
-                    self.dispatch('error', {
-                        'action': 'receive',
-                        'message': err,
-                    })
+                    self.error('receive', err)
                 elif msg['type'] == 1:
                     # update turn count
                     throttling = msg['arguments'][0].get('throttling')
@@ -215,49 +225,11 @@ class Chat(_Chat):# cook
         await wss.close()
         if self.invocation_id == self.invocation_max:
             self.dispatch('max_invocation',{'message': self.invocation_max})
-            self.reset()
+            self.init()
             return
         if self.revoke_times == 3:
             self.dispatch('max_revoke',{'message': self.revoke_times})
-            self.reset()
+            self.init()
 
-    def reset(self):
-        try:
-            with httpx.Client(
-                headers=RequestHeader, 
-                proxies=self.proxies, 
-                timeout=16,
-                transport=httpx.HTTPTransport(retries=3), 
-                cookies=self.cookie,
-            ) as client:
-                response = client.get('https://edgeservices.bing.com/edgesvc/turing/conversation/create')
-                if response.status_code != 200:
-                    self.dispatch('error', {
-                        'action': 'reset',
-                        'code': response.status_code,
-                        'message': response.text,
-                    })
-                self.info = response.json()
-                self.request = Request(self.info)
-                if self.request.state['value'] != 'Success':
-                    self.dispatch('error', {
-                        'action': 'reset',
-                        'message': self.request.state['result']['message'],
-                    })
-            self.invocation_max = -1
-            self.invocation_id = 0
-            self.revoke_times = 0
-            self.chat = True
-            self.dispatch('create', {'message': self.info})
-        except Exception as e:
-            self.chat = False
-            self.dispatch('error', {
-                'action': 'reset',
-                'message': errString(e),
-            })
-
-class Model(_Model):
-    def __init__(self, cookie:dict, listeners={}, proxies={}):
-        self.cookie = cookie
-        self.proxies = proxies
-        self.chat = Chat(self.cookie, listeners, proxies)
+    async def close(self):
+        pass

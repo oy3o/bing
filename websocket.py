@@ -21,7 +21,7 @@ async def handler(socket):
         cookie = message.get('cookie')
         if cookie and (cookie != _cookie):
             _cookie = cookie
-            _model = Model(_cookie, dict.fromkeys(events, event_sender), _proxies)
+            _model = Model(Chat(_cookie, dict.fromkeys(events, event_sender), _proxies))
         if not _model:
             await socket.send('{"type":"error", "message":"model is not initialized"}')
         context = message.get('context')
