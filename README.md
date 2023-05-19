@@ -31,35 +31,5 @@ asyncio.run(main())
 
 ## Websocket API
 why not http? you can do it, but websocket is more suitable for stream and event.
-### server
-```py
-# server
-from oy3opy.ai.bing.websocket import listen
-import asyncio
-import nest_asyncio
-nest_asyncio.apply()
-asyncio.run(listen('127.0.0.1', 8443, proxies = {
-    'http://': 'http://127.0.0.1:1081',
-    'https://': 'http://127.0.0.1:1081',
-}))
-```
-### demo client of python
-```py
-# client test
-from oy3opy.utils.string import tojson
-from oy3opy.utils.file import read_text
-from websockets.sync.client import connect
-import json
 
-cookie = dict([(c['name'], c['value']) for c in json.loads(read_text('cookie.json'))])
-
-ws = connect("ws://127.0.0.1:8443")
-ws.send(tojson({'cookie':cookie,'prompt':'hello'}))
-
-while True:
-    message = json.loads(ws.recv())
-    if message['type'] == 'message': # error | event | mesaage
-        print(message['message'], end='', flush=True)
-    else:
-        print(message)
-```
+move to ([ai#websocket-api](https://github.com/oy3o/ai#websocket-api)), Common Websocket API for different models
