@@ -1,5 +1,5 @@
-from oy3opy.utils.string import random_hex, tojson, errString
-from oy3opy.utils.task import AsyncTask
+from oy3opy.utils.string import random_hex, tojson
+from oy3opy.utils.task import Task
 from oy3opy.ai.model import AI
 from oy3opy.ai.model import Model as _Model
 import certifi
@@ -11,6 +11,7 @@ import uuid
 from websockets.client import connect
 
 events = ['error','create','update','send','generate','result','reply_suggestion','search','search_result','revoke','max_revoke','max_invocation']
+
 ssl_context = ssl.create_default_context()
 ssl_context.load_verify_locations(certifi.where())
 
@@ -133,7 +134,7 @@ class Model(_Model):# cookie, proxies, chat, context
         self.invocation_max = -1
         self.invocation_id = 0
         self.revoke_times = 0
-        self.dispatch('create', {'message': self.info})
+        self.trigger('create', {'message': self.info})
 
     async def update(self, context):
         if not self.invocation_id:
@@ -152,22 +153,22 @@ class Model(_Model):# cookie, proxies, chat, context
             )
             if response.status_code != 200:
                 raise f'code:{response.status_code}\ntext:{response.text}'
-        self.dispatch('update', {'message': context})
+        self.trigger('update', {'message': context})
 
     async def send(self, message):
-        wss = await AsyncTask(connect, ('wss://sydney.bing.com/sydney/ChatHub',),
+        wss = Task(connect, ('wss://sydney.bing.com/sydney/ChatHub',),
             { 'extra_headers': RequestHeader, 'max_size': None, 'ssl': ssl_context,}
         ).retry(2)
         await wss.send('{"protocol":"json", "version":1}\x1e')
         await wss.recv()
 
         await wss.send(self.request.message(self.invocation_id, message))
-        self.dispatch('send', {'message': message})
+        self.trigger('send', {'message': message})
 
         last = ''
         final = False
         while self.chat and not final:
-            frame = await AsyncTask(wss.recv).retry(2)
+            frame = Task(wss.recv).retry(2)
             payloads = str(frame).split('\x1e')
             for payload in payloads:
                 if not payload:
@@ -195,11 +196,11 @@ class Model(_Model):# cookie, proxies, chat, context
                     if (mtype == 'InternalLoaderMessage') or (mtype == 'RenderCardRequest'):
                         continue
                     elif (mtype == 'InternalSearchQuery'):
-                        self.dispatch('search', {'message': message['hiddenText']})
+                        self.trigger('search', {'message': message['hiddenText']})
                     elif mtype == 'GenerateContentQuery':
-                        self.dispatch('generate', {'message': message['text']})
+                        self.trigger('generate', {'message': message['text']})
                     elif mtype == 'InternalSearchResult':
-                        self.dispatch('search_result', {'message': json.loads(message['hiddenText'][8:-3])['web_search_results']})
+                        self.trigger('search_result', {'message': json.loads(message['hiddenText'][8:-3])['web_search_results']})
                     else:
                         chunk = message['text']
                         if not chunk:
@@ -216,22 +217,22 @@ class Model(_Model):# cookie, proxies, chat, context
                     if messages:
                         if messages[-1]['contentOrigin'] == 'Apology':
                             self.revoke_times += 1
-                            self.dispatch('revoke', {'message': message[-1]})
+                            self.trigger('revoke', {'message': message[-1]})
                         else:
                             suggestions = messages[-1].get('suggestedResponses')
                             if suggestions:
-                                self.dispatch('reply_suggestion', {'message': [suggestion['text'] for suggestion in suggestions]})
+                                self.trigger('reply_suggestion', {'message': [suggestion['text'] for suggestion in suggestions]})
                     if item.get('result') and item.get('result').get('message'):
-                        self.dispatch('result', {'message': item.get('result').get('message')})
+                        self.trigger('result', {'message': item.get('result').get('message')})
                 elif msg['type'] == 3:
                     final = True
         await wss.close()
         if self.invocation_id == self.invocation_max:
-            self.dispatch('max_invocation',{'message': self.invocation_max})
+            self.trigger('max_invocation',{'message': self.invocation_max})
             self.init()
             return
         if self.revoke_times == 3:
-            self.dispatch('max_revoke',{'message': self.revoke_times})
+            self.trigger('max_revoke',{'message': self.revoke_times})
             self.init()
 
     async def close(self):
