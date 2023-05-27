@@ -1,7 +1,6 @@
 from oy3opy.utils.string import random_hex, tojson
 from oy3opy.utils.task import Task
-from oy3opy.ai.model import AI
-from oy3opy.ai.model import Model as _Model
+from oy3opy.ai.model import AI, Model as _Model
 import certifi
 import httpx
 import json
