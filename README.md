@@ -15,7 +15,7 @@ import asyncio
 
 cookie = dict([(c['name'], c['value']) for c in json.loads(read_text('cookie.json'))])
 # events = ['error','create','update','send','generate','result','reply_suggestion','search','search_result','revoke','max_revoke','max_invocation']
-bing = AI(Model(cookie, dict.fromkeys(events, print),{# print all event
+bing = AI(Model(cookie, dict.fromkeys(events, [print]),{# print all event
     'http://': 'http://127.0.0.1:1081',
     'https://': 'http://127.0.0.1:1081',
 }))
