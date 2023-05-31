@@ -43,3 +43,17 @@ asyncio.run(main())
 why not http? you can do it, but websocket is more suitable for stream and event.
 
 move to ([ai#websocket-api](https://github.com/oy3o/ai#websocket-api)), Common Websocket API for different models
+
+## advanced API of another repo
+It is worth mentioning that using the more advanced API under https://github.com/oy3o/ai will have a better experience than using the low-level API of bing. Even you can still do it.
+
+### chat with bing
+```py
+chat = Chat('bing', cookie, listeners, proxy)
+await chat.update('your context')
+print(await chat.send_once('what is the realtime?'))
+
+# or stream
+async for chunk in chat.send('what is the time on page?'):
+    print(chunk, end='', flush=True)
+```
