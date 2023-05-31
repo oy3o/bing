@@ -2,6 +2,17 @@
 
 perfect and logical reverse code implements the event-based API and websocket interface.
 
+## install
+Dependencies are still under development, so direct installation is not recommended.
+Currently you can use this method to temporarily use it
+```
+mkdir /home/$USER/python/ #create a folder for github's python code
+cd /home/$USER/python/github # enter the folder
+git clone --recursive https://github.com/oy3o/oy3opy.git # clone the main repo
+export PYTHONPATH=$PATHONPATH:/home/$USER/python/github # add the directory in your environment variable
+# then, use it in your code.
+```
+
 ## Python API
 you can send cookie to init model or reload model.
 
@@ -9,11 +20,10 @@ context will auto reload when chat reach limit, so if you do not change context,
 
 ```py
 from oy3opy.ai.bing import AI, Model, events
-from oy3opy.utils.file import read_text
-import json
+from oy3opy.utils.file import loads
 import asyncio
 
-cookie = dict([(c['name'], c['value']) for c in json.loads(read_text('cookie.json'))])
+cookie = dict([(c['name'], c['value']) for c in loads('cookie.json')])
 # events = ['error','create','update','send','generate','result','reply_suggestion','search','search_result','revoke','max_revoke','max_invocation']
 bing = AI(Model(cookie, dict.fromkeys(events, [print]),{# print all event
     'http://': 'http://127.0.0.1:1081',
